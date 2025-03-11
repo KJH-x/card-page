@@ -20,12 +20,6 @@
   font-style: normal;
 }
 @font-face {
-  font-family: 'MiSans-Medi';
-  src: url('@/assets/MiSans-Medium.woff2') format('woff2');
-  font-weight: 800;
-  font-style: normal;
-}
-@font-face {
   font-family: 'MiSans-Bold';
   src: url('@/assets/MiSans-Bold.woff2') format('woff2');
   font-weight: 800;
