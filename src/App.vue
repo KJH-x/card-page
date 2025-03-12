@@ -3,12 +3,20 @@
     <div class="box" id="borderBox">
       <div class="imgBox" id="imageBox">
         <img src="@/assets/card_base.png" alt="展示图片" id="cardBase" class="image" />
-        <input class="inputField" type="text" id="codeName" placeholder="请输入文字" />
-        <input class="inputField" type="text" id="subjectCode" placeholder="请输入文字" />
-        <input class="inputField" type="text" id="position" placeholder="请输入文字" />
-        <input class="inputField" type="text" id="department" placeholder="请输入文字" />
+        <div v-for="(value, key) in inputs" :key="key">
+          <input class="inputField" type="text" v-model="inputs[key]" :id="key" :placeholder="'请输入' + key"
+            @input="saveInputs" @blur="saveInputs" />
+        </div>
       </div>
     </div>
+
+    <div class="floating-buttons">
+      <button id="make-img" @click="generateAndDownloadImage">保存⤓</button>
+      <button id="clear" @click="clearContent">清除内容⭯</button>
+    </div>
+
+    <!-- Canvas for drawing the image -->
+    <canvas ref="canvas" style="display: none;"></canvas>
   </div>
 </template>
 
@@ -17,6 +25,12 @@ export default {
   data() {
     return {
       // baseScale: 1,
+      inputs: {
+        codeName: '',
+        subjectCode: '',
+        position: '',
+        department: ''
+      },
       inputFontStyle: {
         "codeName": { fontSize: 100, top: 106 },
         "subjectCode": { fontSize: 50, top: 275 },
@@ -29,11 +43,12 @@ export default {
       },
       BoxStyle: {
         "borderBox": { width: 1200, height: 900 }
-      }
+      },
+      textLeft: 80
     };
   },
   mounted() {
-    // this.calculateBaseScale();
+    this.loadInputs();
     this.resizeInputs();
     this.resizeBox();
     window.addEventListener("resize", this.resizeInputs);
@@ -44,9 +59,15 @@ export default {
     window.removeEventListener("resize", this.resizeBox);
   },
   methods: {
-    // calculateBaseScale() {
-    //   this.baseScale = window.innerWidth / 1200;
-    // },
+    loadInputs() {
+      const savedInputs = localStorage.getItem('inputs');
+      if (savedInputs) {
+        this.inputs = JSON.parse(savedInputs);
+      }
+    },
+    saveInputs() {
+      localStorage.setItem('inputs', JSON.stringify(this.inputs));
+    },
     resizeInputs() {
       const scale = window.innerWidth / 1075;
       Object.entries(this.inputFontStyle).forEach(([id, size]) => {
@@ -88,8 +109,58 @@ export default {
           borderBox.style.width = `${this.BoxStyle.borderBox.width}px`;
         }
       }
+    },
+    generateAndDownloadImage() {
+      // Load the base image
+      const img = new Image();
+      img.src = require('@/assets/card_base.png');  // Replace with the correct path if needed
+
+      img.onload = () => {
+        const canvas = this.$refs.canvas;
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        // card-base
+        ctx.drawImage(img, 0, 0);
+
+        // Common Text Settings
+        ctx.fillStyle = '#2a2a2a';
+        ctx.textBaseline = "top";
+        ctx.letterSpacing = "-2px";
+
+        Object.entries(this.inputs).forEach(([key, value]) => {
+          ctx.font = `${this.inputFontStyle[key].fontSize}px MiSans-Bold`;
+          ctx.beginPath();
+          const textMetrics = ctx.measureText(value);
+          if (textMetrics.width >= 910) {
+            alert(`输入的${key}内容过长`)
+          } else {
+            ctx.fillText(value, this.textLeft, this.inputFontStyle[key].top);
+          }
+          ctx.save();
+        });
+
+        this.downloadImage(canvas);
+      };
+    },
+
+    downloadImage(canvas) {
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = `百灶饭卡-${this.inputs.codeName}.png`;
+      link.click();
+    },
+    clearContent() {
+      this.inputs = {
+        codeName: '',
+        subjectCode: '',
+        position: '',
+        department: ''
+      };
+      localStorage.setItem('inputs', JSON.stringify(this.inputs));
     }
-  }
+  },
 };
 </script>
 
@@ -120,11 +191,18 @@ body {
   justify-content: center;
 }
 
+#app {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+
 .container {
   background: #FFF0;
   display: flex;
   align-items: center;
-  justify-content: left;
+  justify-content: center;
   width: 100vw;
   height: 100vh;
 }
@@ -172,33 +250,56 @@ body {
   color: #2a2a2a;
   letter-spacing: -2.5px;
   text-align: left;
+  font-family: 'MiSans-Bold', sans-serif;
 }
 
 #codeName {
   top: 106px;
   height: 130px;
-  font-family: 'MiSans-Semi', sans-serif;
   font-size: 100px;
 }
 
 #subjectCode {
   top: 275px;
   height: 65px;
-  font-family: 'MiSans-Semi', sans-serif;
   font-size: 50px;
 }
 
 #position {
   top: 385px;
   height: 65px;
-  font-family: 'MiSans-Bold', sans-serif;
   font-size: 50px;
 }
 
 #department {
   top: 489px;
   height: 65px;
-  font-family: 'MiSans-Bold', sans-serif;
   font-size: 50px;
 }
+
+.floating-buttons {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 999;
+}
+
+.floating-buttons button {
+  padding: 10px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.floating-buttons button:hover {
+  background-color: #0056b3;
+}
+
 </style>
